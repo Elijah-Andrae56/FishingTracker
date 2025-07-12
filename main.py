@@ -3,15 +3,15 @@ from kivy.clock import Clock
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
 
-from core.gps_utils import GPSTracker
+from core.gps_utils import GPSTracker, last_fix
 from core.waves import Weather
+from core import db
 
-from pathlib import Path, PurePath
-kv_path = PurePath("ui/kv/main.kv")
-print("→ Loading KV:", kv_path, "exists?", Path(kv_path).is_file())
+from pathlib import Path
 
-
-Builder.load_file("ui/kv/main.kv")      # holds <Root>, <TrackScreen>, ...
+KV_DIR = Path(__file__).parent / "ui" / "kv"
+Builder.load_file(str(KV_DIR / "main.kv"))      # holds <Root>, <TrackScreen>, ...
+Builder.load_file(str(KV_DIR / "catch.kv"))
 
 # ------------------------------------------------------------------- UI
 class Root(ScreenManager):
@@ -40,7 +40,17 @@ class WaveScreen(Screen):
             f"Sig Wave {w.sig_wave_ft or '-'} ft"
         )
 
+    def save_catch(self, species: str, bait: str, length_txt: str, notes: str) -> None:
+        """Persist one catch to the database."""
+        coords = last_fix()
+        if coords:
+            lat, lon, _ = coords
+        else:
+            lat = lon = 0.0
 
+        length_in = float(length_txt) if length_txt else None
+        db.log_catch(1, species, lat, lon, length_in=length_in, bait=bait, notes=notes)
+        
 class LogbookScreen(Screen):
     pass
 

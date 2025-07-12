@@ -1,3 +1,5 @@
+#:import Factory kivy.factory.Factory
+
 <Root>:
     TrackScreen:
     WaveScreen:
@@ -5,11 +7,17 @@
 
 <TrackScreen>:
     name: "track"
-    Label:
-        id: speed_lbl
-        text: "Waiting for GPS…"
-        font_size: "24sp"
-
+    BoxLayout:
+        orientation: 'vertical'
+        Label:
+            id: speed_lbl
+            text: "Waiting for GPS…"
+            font_size: "24sp"
+        Button:
+            text: "Log Catch"
+            size_hint_y: None
+            height: "48dp"
+            on_release: Factory.LogCatchPopup().open()
 <WaveScreen>:
     name: "waves"
     Label:
