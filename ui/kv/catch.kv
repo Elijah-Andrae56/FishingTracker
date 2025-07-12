@@ -1,0 +1,43 @@
+# ui/kv/catch.kv  – minimal but functional
+<LogCatchPopup@Popup>:
+    title: "Log a Catch"
+    size_hint: .9, .7
+    auto_dismiss: False
+    BoxLayout:
+        orientation: "vertical"
+        padding: "12dp"
+        spacing: "8dp"
+
+        Spinner:
+            id: species_sp
+            text: root.init_species_text
+            values: root.species_choices or ["Bass", "Perch", "Walleye", "Sheepshead"]
+        Spinner:
+            id: bait_sp
+            text: root.init_bait_text
+            values: root.bait_choices or ["Crankbait", "Worm", "Minnow"]
+        TextInput:
+            id: length_in
+            hint_text: "Length (inches)"
+            input_filter: "float"
+        TextInput:
+            id: notes_in
+            hint_text: "Notes (optional)"
+            multiline: True
+            size_hint_y: .35
+
+        BoxLayout:
+            size_hint_y: None
+            height: "48dp"
+            spacing: "8dp"
+            Button:
+                text: "Cancel"
+                on_release: root.dismiss()
+            Button:
+                text: "Save"
+                on_release: app.save_catch(
+                    species_sp.text,
+                    bait_sp.text,
+                    length_in.text,
+                    notes_in.text
+                )
