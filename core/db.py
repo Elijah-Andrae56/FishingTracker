@@ -178,8 +178,8 @@ def log_catch(
     species: str,
     latitude: float,
     longitude: float,
-    length_in: Optional[float] = None,
-    weight_lb: Optional[float] = None,
+    length_cm: Optional[float] = None,
+    weight_kg: Optional[float] = None,
     bait: Optional[str] = None,
     notes: Optional[str] = None,
     timestamp: Optional[_dt.datetime] = None,
@@ -190,8 +190,8 @@ def log_catch(
         species=species,
         latitude=latitude,
         longitude=longitude,
-        length_in=length_in,
-        weight_lb=weight_lb,
+        length_cm=length_cm,
+        weight_kg=weight_kg,
         bait=bait,
         notes=notes,
     )
@@ -269,6 +269,6 @@ if __name__ == "__main__":
     s = start_session("debug session")
     log_gps(s, 45.0, -122.0, 5.5)
     log_weather(s, temp_c=21.3, wind_kph=3)
-    log_catch(s, "trout", 45.0, -122.0, length_in=32)
+    log_catch(s, "trout", 45.0, -122.0, length_cm=81.3)
     end_session(s)
     print(get_session_summary(s))
