@@ -4,28 +4,3 @@
     TrackScreen:
     WaveScreen:
     LogbookScreen:
-
-<TrackScreen@Screen>:
-    name: "track"
-    BoxLayout:
-        orientation: 'vertical'
-        Label:
-            id: speed_lbl
-            text: "Waiting for GPS…"
-            font_size: "24sp"
-        Button:
-            text: "Log Catch"
-            size_hint_y: None
-            height: "48dp"
-            on_release: Factory.LogCatchPopup().open()
-<WaveScreen@Screen>:
-    name: "waves"
-    Label:
-        id: wave_lbl
-        text: "Loading buoy…"
-        font_size: "20sp"
-
-<LogbookScreen@Screen>:
-    name: "logbook"
-    Label:
-        text: "Logbook coming soon"

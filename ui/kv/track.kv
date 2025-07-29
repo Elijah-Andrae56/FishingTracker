@@ -1,0 +1,22 @@
+<TrackScreen>:
+    name: "track"
+    BoxLayout:
+        orientation: "vertical"
+        padding: "12dp"
+        spacing: "8dp"
+
+        Label:
+            id: speed_lbl
+            text: "Waiting for GPS…"
+            font_size: "24sp"
+
+        Label:               
+            id: wave_lbl
+            text: "Loading buoy…"
+            font_size: "20sp"
+
+        Button:
+            text: "Log Catch"
+            size_hint_y: None
+            height: "48dp"
+            on_release: Factory.LogCatchPopup().open()

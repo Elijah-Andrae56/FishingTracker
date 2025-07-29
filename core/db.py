@@ -263,7 +263,7 @@ def get_session_summary(session: Session | int):
 # ---------------------------------------------------------------------------
 # 7. Lookup Helpers
 # ---------------------------------------------------------------------------
-from peewee import fn
+from peewee import fn # type: ignore
 
 def distinct_species() -> list[str]:
     """Return alphabetic list of unique species already logged."""

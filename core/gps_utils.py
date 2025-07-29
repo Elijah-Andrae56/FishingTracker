@@ -104,9 +104,17 @@ class GPSTracker:
         self._enabled = False
 
     # ----------------------- subscriber pattern -------------------------- #
-    def subscribe(self, cb: Callable[[float, float, float], None]) -> None:
-        """Call *cb(lat, lon, speed_kph)* whenever a new fix arrives."""
+
+    def subscribe(self, cb):
+        """Register callback; return handle so caller can unsubscribe."""
         self._subscribers.append(cb)
+        return cb              # <‑‑ return value useful for later
+
+    def unsubscribe(self, cb):
+        """Remove a callback previously added with subscribe()."""
+        if cb in self._subscribers:
+            self._subscribers.remove(cb)
+
 
     # ------------------------- callbacks --------------------------------- #
     def _on_location(self, **kw) -> None:

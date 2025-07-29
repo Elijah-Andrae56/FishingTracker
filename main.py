@@ -15,7 +15,6 @@ from core import db
 db.initialize()
 
 from pathlib import Path
-from uuid import uuid4
 
 # ------------------------------------------------------------------- UI
 class Root(ScreenManager):
@@ -46,8 +45,9 @@ Factory.register("WeatherPopup", cls=WeatherPopup)
 # Load KV files ***after*** all classes are defined
 KV_DIR = Path(__file__).parent / "ui" / "kv"
 from kivy.lang import Builder  # type: ignore
-Builder.load_file(str(KV_DIR / "main.kv"))
-Builder.load_file(str(KV_DIR / "catch.kv"))
+for kv in ("main.kv", "catch.kv", "home.kv", "weather.kv", "track.kv", "logbook.kv"):
+    Builder.load_file(str(KV_DIR / kv))
+
 
 # ------------------------------------------------------------------- App
 class FishTrackerApp(App):
@@ -55,7 +55,6 @@ class FishTrackerApp(App):
         self.gps = GPSTracker.get_instance()
         self.gps.start()
         self.weather = Weather()
-        self.session_id = uuid4()
         return Root()
     
     def save_catch(self, species: str, bait: str, length_txt: str, notes: str) -> None:

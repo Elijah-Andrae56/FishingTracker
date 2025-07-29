@@ -16,11 +16,9 @@ class TrackScreen(Screen):
         self.update_wave()   # update immediately
 
     def on_leave(self):
-        """Unhook callbacks so they don't run while we're on other screens."""
-        if self._gps_cb:
-            App.get_running_app().gps.unsubscribe(self._gps_cb)
-        if self._wx_event:
-            self._wx_event.cancel()
+        app = App.get_running_app()
+        app.gps.unsubscribe(self._gps_cb)      # <‑‑ now valid
+        self._wx_event.cancel()
 
     def update_wave(self, *_):
         w = App.get_running_app().weather
