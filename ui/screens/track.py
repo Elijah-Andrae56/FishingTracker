@@ -21,6 +21,7 @@ class TrackScreen(Screen):
         self._wx_event.cancel()
 
     def update_wave(self, *_):
+        print("ids:", self.ids.keys())
         w = App.get_running_app().weather
         w.refresh()
         self.ids.wave_lbl.text = (

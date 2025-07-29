@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import requests, logging
-from typing import Dict, Tuple, Optional, Union
+import requests, logging, time
+from typing import Dict, Tuple, Optional, Union, Callable
+from kivy.clock import Clock  # type: ignore
 
 # ---------- project- / param-IDs you care about ------------------------
 PROJECT_ID = 55                       # your WQDataLIVE project
@@ -33,51 +34,63 @@ def _latest(project_id: int, param_id: int) -> Tuple[datetime, float]:
 
 # ---------- public convenience layer ----------------------------------
 class Weather:
-    """Container that fetches *all* parameters in one call to .refresh()."""
+    """Fetches buoy parameters and caches them for *CACHE_SEC* seconds."""
+    CACHE_SEC = 600          # 10 min
+    POLL_SEC  = 1800         # 30 min
 
-    def __init__(self, project_id: int = PROJECT_ID):
+    def __init__(self, project_id: int = PROJECT_ID, db_hook: Callable | None = None):
+        ...
+        self._last_fetch = 0.0
+        self._db_hook    = db_hook      # called with (weather_obj) after each *new* fetch
         self.project_id = project_id
-        self.data: Dict[str, float | str | None] = {}
-        self.time_utc: Optional[datetime] = None
+
+        # kick‑off timer
+        Clock.schedule_interval(lambda *_: self.refresh(), self.POLL_SEC)
+        self.refresh(force=True)        # first download right away
 
     def __getattr__(self, name: str) -> Union[float, str, None]:
         if name in PARAM_IDS.values():
             return self.data.get(name)
         raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
 
-    # -- API ------------------------------------------------------------
-    def refresh(self) -> None:
-        """Download the newest set of readings and cache them on the object."""
-        latest_time = None
-        buf: Dict[str, Union[float, str, None]] = {}
+       # ── allow app to register a post‑refresh callback ───────────────
+    def set_refresh_hook(self, fn):
+        """fn(weather_obj) is called *only* when new data was downloaded."""
+        self._on_refresh = fn
 
-        for pid, attr_name in PARAM_IDS.items():
-            try:
+    # ── main entry point ─────────────────────────────────────────────
+
+    def refresh(self, force: bool = False) -> None:
+        if not force and time.time() - self._last_fetch < self.CACHE_SEC:
+            return
+
+        try:
+            latest_time = None
+            buf: Dict[str, Union[float, str]] = {}
+            for pid, key in PARAM_IDS.items():
                 ts, val = _latest(self.project_id, pid)
-            except (requests.RequestException, RuntimeError) as exc:
-                logging.warning(
-                    "Wave API %s failed for param %s (%s): %s",
-                    self.project_id, pid, attr_name, exc
-                )
-                buf[attr_name] = None
-                continue
-
-            buf[attr_name] = val
-            if latest_time is None or ts > latest_time:
-                latest_time = ts
-
+                buf[key] = val
+                if latest_time is None or ts > latest_time:
+                    latest_time = ts
+        except Exception as exc:
+            logging.warning("Weather refresh failed: %s", exc)
+            return
 
         self.time_utc = latest_time
         self.data     = buf
+        self._last_fetch = time.time()
 
+        # derived fields
         if self.wind_direction_deg is not None:
-            self.data["wind_direction_compass"] = self.deg_to_compass8(self.wind_direction_deg) # type: ignore
-
+            self.data["wind_direction_compass"] = self.deg_to_compass8(self.wind_direction_deg)
         if self.dominant_wave_direction_deg is not None:
-            self.data["dominant_wave_direction_compass"] = self.deg_to_compass8(self.dominant_wave_direction_deg) # type: ignore
+            self.data["dominant_wave_direction_compass"] = self.deg_to_compass8(
+                self.dominant_wave_direction_deg
+            )
 
-
-
+        if self._db_hook:
+            self._db_hook(self)
+            
     def deg_to_compass8(self, deg: float):
         '''Convert a bearing in degrees to one of the eight compass points.'''
         directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
