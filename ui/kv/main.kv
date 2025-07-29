@@ -5,7 +5,7 @@
     WaveScreen:
     LogbookScreen:
 
-<TrackScreen>:
+<TrackScreen@Screen>:
     name: "track"
     BoxLayout:
         orientation: 'vertical'
@@ -18,14 +18,14 @@
             size_hint_y: None
             height: "48dp"
             on_release: Factory.LogCatchPopup().open()
-<WaveScreen>:
+<WaveScreen@Screen>:
     name: "waves"
     Label:
         id: wave_lbl
         text: "Loading buoy…"
         font_size: "20sp"
 
-<LogbookScreen>:
+<LogbookScreen@Screen>:
     name: "logbook"
     Label:
         text: "Logbook coming soon"

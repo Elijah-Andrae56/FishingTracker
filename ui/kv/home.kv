@@ -1,0 +1,30 @@
+<HomeScreen>:
+    name: "home"
+    BoxLayout:
+        orientation: "vertical"
+        padding: "12dp"
+        spacing: "12dp"
+
+        BoxLayout:
+            size_hint_y: None
+            height: "40dp"
+            Button:                # gear icon – stub
+                text: "⚙"
+                size_hint_x: None
+                width: "40dp"
+            Label:
+                text: "Welcome"
+                halign: "left"
+                valign: "middle"
+
+        Button:
+            text: "Weather"
+            size_hint_y: None
+            height: "70dp"
+            on_release: Factory.WeatherPopup().open()
+
+        Button:
+            text: "Start Trip"
+            size_hint_y: None
+            height: "90dp"
+            on_release: root.start_trip()

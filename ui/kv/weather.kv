@@ -1,0 +1,23 @@
+<WeatherPopup>:
+    title: "Lake Erie Buoy"
+    size_hint: .9, .7
+    BoxLayout:
+        orientation: "vertical"
+        padding: "12dp"
+        spacing: "8dp"
+
+        Label:
+            text: f"Wind: {root.wind:.1f} mph"
+            font_size: "22sp"
+        Label:
+            text: f"Sig Wave: {root.wave:.1f} ft"
+            font_size: "22sp"
+        Label:
+            text: f"Air Temp: {root.temp:.1f} °F"
+            font_size: "22sp"
+
+        Button:
+            size_hint_y: None
+            height: "48dp"
+            text: "Close"
+            on_release: root.dismiss()

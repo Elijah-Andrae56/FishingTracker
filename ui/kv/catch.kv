@@ -1,43 +1,62 @@
-# ui/kv/catch.kv  – minimal but functional
-<LogCatchPopup@Popup>:
-    title: "Log a Catch"
-    size_hint: .9, .7
-    auto_dismiss: False
-    BoxLayout:
-        orientation: "vertical"
-        padding: "12dp"
-        spacing: "8dp"
+<LogCatchPopup>:
+    title: "Log Catch"
+    size_hint: .9, .9
 
-        Spinner:
-            id: species_sp
-            text: root.init_species_text
-            values: root.species_choices or ["Bass", "Perch", "Walleye", "Sheepshead"]
-        Spinner:
-            id: bait_sp
-            text: root.init_bait_text
-            values: root.bait_choices or ["Crankbait", "Worm", "Minnow"]
+    BoxLayout:               # ← ONE root child for the popup
+        orientation: "vertical"
+        spacing: "8dp"
+        padding: "12dp"
+
+        # --- Species row ------------------------------------------
+        BoxLayout:
+            spacing: "8dp"
+            Spinner:
+                id: species_sp
+                text: root.init_species_text
+                values: root.species_choices
+                size_hint_x: .55
+            TextInput:
+                id: species_txt
+                hint_text: "...or type new"
+                multiline: False
+                size_hint_x: .45
+
+        # --- Bait row ---------------------------------------------
+        BoxLayout:
+            spacing: "8dp"
+            Spinner:
+                id: bait_sp
+                text: root.init_bait_text
+                values: root.bait_choices
+                size_hint_x: .55
+            TextInput:
+                id: bait_txt
+                hint_text: "...or type new"
+                multiline: False
+                size_hint_x: .45
+
+        # --- Length & notes ---------------------------------------
         TextInput:
             id: length_in
-            hint_text: "Length (inches)"
+            hint_text: "Length (in)"
             input_filter: "float"
         TextInput:
-            id: notes_in
-            hint_text: "Notes (optional)"
+            id: notes
+            hint_text: "Notes"
             multiline: True
-            size_hint_y: .35
-
+            height: "80dp"
+        # --- Buttons row ----------------------------------------------------
         BoxLayout:
+            spacing: "8dp"
             size_hint_y: None
             height: "48dp"
-            spacing: "8dp"
+
             Button:
                 text: "Cancel"
-                on_release: root.dismiss()
+                on_release: root.dismiss()          # simply close the popup
+
             Button:
                 text: "Save"
-                on_release: app.save_catch(
-                    species_sp.text,
-                    bait_sp.text,
-                    length_in.text,
-                    notes_in.text
-                )
+                on_release:
+                    app.save_catch(species_sp.text, bait_sp.text, length_in.text, notes.text)
+                    root.dismiss()

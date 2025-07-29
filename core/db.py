@@ -29,7 +29,7 @@ from peewee import (
     FloatField,
     CharField,
     TextField,
-    ForeignKeyField,
+    ForeignKeyField
 )
 
 
@@ -261,8 +261,32 @@ def get_session_summary(session: Session | int):
 
 
 # ---------------------------------------------------------------------------
-# 7. CLI test (only runs on desktop)
+# 7. Lookup Helpers
 # ---------------------------------------------------------------------------
+from peewee import fn
+
+def distinct_species() -> list[str]:
+    """Return alphabetic list of unique species already logged."""
+    rows = (Catch
+            .select(Catch.species)
+            .distinct()
+            .order_by(fn.LOWER(Catch.species)))
+    return [r.species for r in rows]
+
+def distinct_baits() -> list[str]:
+
+    rows = (Catch
+            .select(Catch.bait)
+            .where(Catch.bait.is_null(False))   # exclude NULL
+            .distinct()
+            .order_by(fn.LOWER(Catch.bait)))
+    return [r.bait for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# 8. CLI test (only runs on desktop)
+# ---------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     initialize()

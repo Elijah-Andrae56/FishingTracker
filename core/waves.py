@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import requests
-from typing import Dict, Tuple, Optional, Literal
+import requests, logging
+from typing import Dict, Tuple, Optional, Union
 
 # ---------- project- / param-IDs you care about ------------------------
 PROJECT_ID = 55                       # your WQDataLIVE project
@@ -37,14 +37,10 @@ class Weather:
 
     def __init__(self, project_id: int = PROJECT_ID):
         self.project_id = project_id
-        self.data: Dict[str, Optional[float]] = {}
+        self.data: Dict[str, float | str | None] = {}
         self.time_utc: Optional[datetime] = None
 
-        self.wind_direction_deg = self.deg_to_compass8(self.wind_direction_deg)
-        self.dominant_wave_direction_deg = self.deg_to_compass8(self.dominant_wave_direction_deg)
-
-
-    def __getattr__(self, name: str) -> Optional[float]:
+    def __getattr__(self, name: str) -> Union[float, str, None]:
         if name in PARAM_IDS.values():
             return self.data.get(name)
         raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
@@ -53,16 +49,34 @@ class Weather:
     def refresh(self) -> None:
         """Download the newest set of readings and cache them on the object."""
         latest_time = None
-        buf: Dict[str, float] = {}
+        buf: Dict[str, Union[float, str, None]] = {}
 
-        for pid, key in PARAM_IDS.items():
-            ts, val = _latest(self.project_id, pid)
-            buf[key] = val
+        for pid, attr_name in PARAM_IDS.items():
+            try:
+                ts, val = _latest(self.project_id, pid)
+            except (requests.RequestException, RuntimeError) as exc:
+                logging.warning(
+                    "Wave API %s failed for param %s (%s): %s",
+                    self.project_id, pid, attr_name, exc
+                )
+                buf[attr_name] = None
+                continue
+
+            buf[attr_name] = val
             if latest_time is None or ts > latest_time:
                 latest_time = ts
 
+
         self.time_utc = latest_time
         self.data     = buf
+
+        if self.wind_direction_deg is not None:
+            self.data["wind_direction_compass"] = self.deg_to_compass8(self.wind_direction_deg) # type: ignore
+
+        if self.dominant_wave_direction_deg is not None:
+            self.data["dominant_wave_direction_compass"] = self.deg_to_compass8(self.dominant_wave_direction_deg) # type: ignore
+
+
 
     def deg_to_compass8(self, deg: float):
         '''Convert a bearing in degrees to one of the eight compass points.'''
