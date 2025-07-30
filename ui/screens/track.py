@@ -5,7 +5,8 @@ from kivy.app import App                          # type: ignore
 from kivy.clock import Clock                      # type: ignore
 from kivy.uix.screenmanager import Screen         # type: ignore
 from kivy.resources import resource_add_path, resource_find # type: ignore
-from kivy_garden.mapview import MapMarker         # type: ignore
+from kivy_garden.mapview import MapMarker                   # type: ignore
+from core.mapline import MapLine
 
 from core import db
 
@@ -40,7 +41,7 @@ class TrackScreen(Screen):
 
         # 3c) create your “boat” marker at start too
         img_boat = resource_find("boat.png")
-        self._pos_marker = MapMarker(lat=lat0 + 0.05, lon=lon0 + 0.05, source=img_boat)
+        self._pos_marker = MapMarker(lat=lat0, lon=lon0, source=img_boat)
         mv.add_widget(self._pos_marker)
 
         # 4) subscribe GPS fixes & buoy timer
@@ -49,6 +50,11 @@ class TrackScreen(Screen):
         self._wx_event  = Clock.schedule_interval(self.update_wave, 1800)
         # update labels immediately
         self.update_wave()
+
+        # Initialize the tracking line
+        self._route = MapLine(mapview=mv)
+        mv.add_widget(self._route)
+
 
     def on_leave(self):
         app = App.get_running_app()
@@ -66,6 +72,9 @@ class TrackScreen(Screen):
         # 3) move your “boat” marker
         self._pos_marker.lat = lat
         self._pos_marker.lon = lon
+
+        self._route.add_point(lat, lon)
+
 
         # 4) center map
         self.ids.mapview.center_on(lat, lon)
