@@ -60,6 +60,18 @@ class FishTrackerApp(App):
                          f"/Sig{w.sig_wave_ft or 0}ft",
         )
 
+    def end_trip(self):
+        """Stop GPS, close DB session and return to home screen."""
+        # 1. stop GPS & weather timers
+        self.gps.stop()
+        # 2. end open Session row
+        sess = getattr(self, "current_session", None)
+        if sess:
+            db.end_session(sess)
+            del self.current_session
+        # 3. go back to “home”
+        self.root.current = "home"
+
     # unchanged save_catch / on_stop …
 
 if __name__ == "__main__":

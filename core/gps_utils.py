@@ -82,16 +82,16 @@ class GPSTracker:
 
         if _PLYER_AVAILABLE:
             try:
-                gps.configure(on_location=self._on_location,
+                gps.configure(on_location=self._on_location, # type: ignore
                               on_status=self._on_status)
                 # minTime 1000 ms, minDistance 1 m keeps power low.
-                gps.start(minTime=1000, minDistance=1)
+                gps.start(minTime=1000, minDistance=1) # type: ignore
                 self._enabled = True
             except NotImplementedError:
                 print("⚠  Plyer GPS not implemented; falling back to stub.")
         else:
             # Desktop stub: start a timer loop in Kivy’s Clock
-            from kivy.clock import Clock
+            from kivy.clock import Clock # type: ignore
             Clock.schedule_interval(self._fake_desktop_gps, 1.0)
             self._enabled = True
             print("ℹ  Desktop GPS stub enabled – spiral trajectory.")
@@ -100,7 +100,7 @@ class GPSTracker:
         if not self._enabled:
             return
         if _PLYER_AVAILABLE:
-            gps.stop()
+            gps.stop() # type: ignore
         self._enabled = False
 
     # ----------------------- subscriber pattern -------------------------- #

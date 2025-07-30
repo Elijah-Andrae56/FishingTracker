@@ -4,8 +4,10 @@ bin/*.apk
 
 # ---- Python byte‑code & cache ---------------------------
 __pycache__/
+core/__pycache__/
 *.py[cod]
 .venv/
+cache/
 
 # ---- Logs, local databases, misc ------------------------
 log.txt
