@@ -1,6 +1,7 @@
 # ---- Buildozer / Kivy‑Android artefacts -----------------
 .buildozer/
-bin/*.apk
+bin/ 
+# *.apk
 
 # ---- Python byte‑code & cache ---------------------------
 __pycache__/
@@ -12,3 +13,4 @@ cache/
 # ---- Logs, local databases, misc ------------------------
 log.txt
 core/*.db
+fishtracker.zip

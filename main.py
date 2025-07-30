@@ -8,6 +8,9 @@ from kivy.lang    import Builder      # for .load_file(...)
 from kivy.app              import App   # type: ignore
 from kivy.uix.screenmanager import ScreenManager   # type: ignore
 
+from kivy.config import Config
+Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
+
 # 3. Core services
 from core import db
 from core.gps_utils import GPSTracker, last_fix
