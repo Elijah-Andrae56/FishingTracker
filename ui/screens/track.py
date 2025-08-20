@@ -117,7 +117,7 @@ class TrackScreen(Screen):
             f"Sig  {w.sig_wave_ft    or '–'} ft"
         )
 
-    def place_catch_marker(self, catch):
+    def _place_catch_marker(self, catch):
         """
         Add a MapMarkerPopup for this Catch record, so it shows up
         (and opens its own little popup when tapped).
