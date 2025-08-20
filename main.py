@@ -64,18 +64,54 @@ class FishTrackerApp(App):
         )
 
     def end_trip(self):
-        """Stop GPS, close DB session and return to home screen."""
-        # 1. stop GPS & weather timers
-        self.gps.stop()
-        # 2. end open Session row
-        sess = getattr(self, "current_session", None)
-        if sess:
-            db.end_session(sess)
-            del self.current_session
-        # 3. go back to “home”
-        self.root.current = "home"
+            """Stop GPS, close DB session and return to home screen."""
+            # 1) stop GPS & weather timers
+            try:
+                self.gps.stop()
+            except NotImplementedError:
+                # plyer.gps.stop() isn't implemented on this platform → ignore
+                pass
 
-    # unchanged save_catch / on_stop …
+            # 2) end open Session row
+            sess = getattr(self, "current_session", None)
+            if sess:
+                db.end_session(sess)
+                del self.current_session
+
+            # 3) go back to “home”
+            self.root.current = "home"
+
+    def save_catch(self, species: str, bait: str, length_txt: str, notes: str):
+        # 1) grab the latest coords (or default to 0,0)
+        coords = last_fix()
+        if coords:
+            lat, lon, _ = coords
+        else:
+            lat = lon = 0.0
+
+        # 2) parse length & convert to cm
+        length_in = float(length_txt) if length_txt else None
+        length_cm = length_in * 2.54 if length_in else None
+
+        # 3) ensure there’s a session
+        session = getattr(self, "current_session", None)
+        if session is None:
+            session = db.start_session()
+            self.current_session = session
+
+        # this returns the new Catch model instance
+        new_catch = db.log_catch(
+            session,
+            species,
+            lat, lon,
+            length_cm=length_cm,
+            bait=bait,
+            notes=notes
+        )
+
+        # now tell the track screen to drop its icon
+        track = self.root.get_screen("track")
+        track.place_catch_marker(new_catch)
 
 if __name__ == "__main__":
     FishTrackerApp().run()

@@ -80,21 +80,23 @@ class GPSTracker:
         if self._enabled:
             return
 
-        if _PLYER_AVAILABLE:
+        if _IS_ANDROID:
             try:
-                gps.configure(on_location=self._on_location, # type: ignore
-                              on_status=self._on_status)
-                # minTime 1000 ms, minDistance 1 m keeps power low.
+                gps.configure( # type: ignore
+                    on_location=self._on_location,  # type: ignore
+                    on_status=self._on_status,
+                ) # minTime 1000 ms, minDistance 1 m keeps power low. 
                 gps.start(minTime=1000, minDistance=1) # type: ignore
                 self._enabled = True
+                return
             except NotImplementedError:
                 print("⚠  Plyer GPS not implemented; falling back to stub.")
-        else:
-            # Desktop stub: start a timer loop in Kivy’s Clock
-            from kivy.clock import Clock # type: ignore
-            Clock.schedule_interval(self._fake_desktop_gps, 1.0)
-            self._enabled = True
-            print("ℹ  Desktop GPS stub enabled – spiral trajectory.")
+
+        # Desktop stub: start a timer loop in Kivy’s Clock
+        from kivy.clock import Clock # type: ignore
+        Clock.schedule_interval(self._fake_desktop_gps, 1.0)
+        self._enabled = True
+        print("ℹ  Desktop GPS stub enabled – spiral trajectory.")
 
     def stop(self) -> None:
         if not self._enabled:
@@ -138,8 +140,8 @@ class GPSTracker:
         t = time.time() - self._t0
         radius = 0.0002 * t      # lat/lon degrees ≈ 22 m @ 45°N
         angle = 0.5 * t
-        self._lat = 45.0000 + radius * math.cos(angle)
-        self._lon = -122.0000 + radius * math.sin(angle)
+        self._lat = 42.177377 + radius * math.cos(angle)
+        self._lon = -80.034476 + radius * math.sin(angle)
         self._speed_mps = 1.5    # pretend 1.5 m/s (≈ 3 kn)
         for fn in self._subscribers:
             fn(self._lat, self._lon, self.speed_kph)
