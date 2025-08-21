@@ -74,64 +74,52 @@ class TrackScreen(Screen):
 
     def _on_fix(self, lat, lon, spd):
         """Called on every GPS fix."""
-        # 1) live speed label
-        self.ids.speed_lbl.text = f"{spd:4.1f} kn"
+        app = App.get_running_app()
 
-        # 2) persist fix
-        db.log_gps(App.get_running_app().current_session, lat, lon, speed_kph=spd)
+        # 1) live speed label — convert from source (knots) to user preference
+        self.ids.speed_lbl.text = app.units.fmt("speed", spd, source="kn", precision=1)
+
+        # 2) persist fix — store canonical (kph) in DB
+        spd_kph = app.units.to_base("speed", spd, source="kn")
+        db.log_gps(app.current_session, lat, lon, speed_kph=spd_kph)
 
         # 3) move your “boat” marker
         self._pos_marker.lat = lat
         self._pos_marker.lon = lon
-
         self._route.add_point(lat, lon)
-             
-        # on desktop, 5% of fixes become a dummy test catch
-        if random.random() < 0.05:
-            class Fake: pass
-            f = Fake()
-            f.latitude   = lat              # type: ignore
-            f.longitude  = lon              # type: ignore
-            f.species    = "TEST"           # type: ignore
-            f.length_cm  = 25.0             # type: ignore
-            f.weight_kg  = 0.75             # type: ignore
-            self._place_catch_marker(f)   
 
+        # … your existing dummy catch logic here …
 
         # 4) center map
         self.ids.mapview.center_on(lat, lon)
 
-        # ——— on the very first real fix, snap the start pin to that position ———
+        # First real fix: snap start marker
         if self._first_fix is None:
             self._first_fix = (lat, lon)
-            # reposition the start marker from DEFAULT_START to the user's actual start
             self._start_marker.lat = lat
             self._start_marker.lon = lon
 
+    def _paint_wave_labels(self):
+        app = App.get_running_app()
+        w = app.weather
+        wind_txt = app.units.fmt("speed", w.wind_speed_mph, source="mph", precision=0)
+        wave_txt = app.units.fmt("wave",  w.sig_wave_ft,    source="ft",  precision=1)
+        self.ids.wave_lbl.text = f"Wind {wind_txt}   Sig {wave_txt}"
+
     def update_wave(self, *_):
-        """Refresh buoy + update labels."""
-        w = App.get_running_app().weather
-        w.refresh()
-        self.ids.wave_lbl.text = (
-            f"Wind {w.wind_speed_mph or '–'} mph   "
-            f"Sig  {w.sig_wave_ft    or '–'} ft"
-        )
+        # 1) Paint immediately from whatever’s cached (non-blocking)
+        self._paint_wave_labels()
+
 
     def _place_catch_marker(self, catch):
         """
         Add a MapMarkerPopup for this Catch record, so it shows up
         (and opens its own little popup when tapped).
         """
+        app = App.get_running_app()
         icon = resource_find("fish.png") or ""
-        marker = MapMarkerPopup(
-            lat=catch.latitude,
-            lon=catch.longitude,
-            source=icon
-        )
-        # (optionally) attach some content to marker.popup content,
-        # e.g. a Label with species/length/bait…
-        marker.add_widget(
-            Label(text=f"{catch.species}\n{catch.length_cm:.1f} cm")
-        )
-        self.ids.mapview.add_widget(marker)
+        marker = MapMarkerPopup(lat=catch.latitude, lon=catch.longitude, source=icon)
 
+        length_txt = app.units.fmt_from_base("length", catch.length_cm, precision=1)
+        marker.add_widget(Label(text=f"{catch.species}\n{length_txt}"))
+        self.ids.mapview.add_widget(marker)

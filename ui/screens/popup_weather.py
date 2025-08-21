@@ -9,8 +9,30 @@ class WeatherPopup(Popup):
     temp  = NumericProperty(0)
 
     def on_open(self):
-        self.update_labels()
-        self._event = Clock.schedule_interval(lambda *_: self.update_labels(), 600)
+        self.repaint()
+
+    def repaint(self):
+        app = App.get_running_app()
+        w   = app.weather
+        # Use your units helper for display
+        wind_txt = app.units.fmt("speed", w.wind_speed_mph, source="mph", precision=0)
+        wave_txt = app.units.fmt("wave",  w.sig_wave_ft,    source="ft",  precision=1)
+        self.ids.wind_lbl.text = f"Wind: {wind_txt}"
+        self.ids.wave_lbl.text = f"Sig Wave: {wave_txt}"
+
+    def refresh_now(self):
+        # Disable the button while we fetch
+        btn = self.ids.refresh_btn
+        btn.disabled = True
+        btn.text = "Refreshing…"
+
+        def _done(_w):
+            # Back on UI thread: repaint and re-enable
+            self.repaint()
+            btn.disabled = False
+            btn.text = "Refresh now"
+
+        App.get_running_app().weather.refresh(force=True, callback=_done)
 
     def on_dismiss(self):
         if hasattr(self, "_event"):

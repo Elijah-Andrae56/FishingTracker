@@ -11,9 +11,10 @@
             size_hint_y: None
             height: "40dp"
             Button:                # gear icon – stub
-                text: "Settings (Not available)"
+                text: "Settings"
                 size_hint_x: None
-                width: "40dp"
+                width: "45dp"
+                on_release: app.open_settings()
             Label:
                 text: "Welcome"
                 halign: "left"
