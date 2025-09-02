@@ -1,16 +1,16 @@
 # ui/screens/track.py
 from pathlib import Path
+import random
 
 from kivy.app import App                          # type: ignore
 from kivy.clock import Clock                      # type: ignore
 from kivy.uix.screenmanager import Screen         # type: ignore
-from kivy.resources import resource_add_path, resource_find # type: ignore
-from kivy_garden.mapview import MapMarker, MapMarkerPopup   # type: ignore
-from kivy.uix.boxlayout import BoxLayout                    # type: ignore
-from kivy.uix.label import Label                            # type: ignore
-from core.mapline import MapLine
+from kivy.resources import resource_add_path, resource_find  # type: ignore
+from kivy_garden.mapview import MapMarker, MapMarkerPopup    # type: ignore
+from kivy.uix.label import Label                  # type: ignore
+
 from core import db
-import random
+from core.mapline import MapLine
 
 # 1) register your icon folder so resource_find() works at runtime:
 resource_add_path(str(Path(__file__).parent.parent / "img"))
@@ -46,12 +46,11 @@ class TrackScreen(Screen):
         self._pos_marker = MapMarker(lat=lat0, lon=lon0, source=img_boat)
         mv.add_widget(self._pos_marker)
 
-        # 4) subscribe GPS fixes & buoy timer
+        # 4) subscribe GPS fixes & wave label timer (paint-only)
         self._first_fix = None
-        self._gps_cb    = app.gps.subscribe(self._on_fix)
-        self._wx_event  = Clock.schedule_interval(self.update_wave, 1800)
-        # update labels immediately
-        self.update_wave()
+        self._gps_cb = app.gps.subscribe(self._on_fix)
+        self._wx_event = Clock.schedule_interval(self.update_wave, 1800)  # 30 min to match Weather polling
+        self.update_wave()  # paint immediately
 
         # Initialize the tracking line
         self._route = MapLine(mapview=mv)
@@ -64,36 +63,45 @@ class TrackScreen(Screen):
         """Place one marker per Catch in the current session."""
         session = App.get_running_app().current_session
         for c in db.Catch.select().where(db.Catch.session == session):
-            # only place if we haven’t already
             self._place_catch_marker(c)
 
     def on_leave(self):
         app = App.get_running_app()
         app.gps.unsubscribe(self._gps_cb)
-        self._wx_event.cancel()
+        if hasattr(self, "_wx_event"):
+            self._wx_event.cancel()
 
     def _on_fix(self, lat, lon, spd):
         """Called on every GPS fix."""
         app = App.get_running_app()
 
-        # 1) live speed label — convert from source (knots) to user preference
+        # If your source speed is NOT knots, change source="kn" accordingly (e.g., "kph")
         self.ids.speed_lbl.text = app.units.fmt("speed", spd, source="kn", precision=1)
 
-        # 2) persist fix — store canonical (kph) in DB
+        # Persist canonical kph in DB
         spd_kph = app.units.to_base("speed", spd, source="kn")
         db.log_gps(app.current_session, lat, lon, speed_kph=spd_kph)
 
-        # 3) move your “boat” marker
+        # Move boat marker + extend route
         self._pos_marker.lat = lat
         self._pos_marker.lon = lon
         self._route.add_point(lat, lon)
 
-        # … your existing dummy catch logic here …
+        # (optional) desktop dummy catch generator
+        # if random.random() < 0.05:
+        #     class Fake: pass
+        #     f = Fake()
+        #     f.latitude  = lat
+        #     f.longitude = lon
+        #     f.species   = "TEST"
+        #     f.length_cm = 25.0
+        #     f.weight_kg = 0.75
+        #     self._place_catch_marker(f)
 
-        # 4) center map
+        # Center map on new position
         self.ids.mapview.center_on(lat, lon)
 
-        # First real fix: snap start marker
+        # On the very first real fix, snap the start pin to that position
         if self._first_fix is None:
             self._first_fix = (lat, lon)
             self._start_marker.lat = lat
@@ -102,14 +110,18 @@ class TrackScreen(Screen):
     def _paint_wave_labels(self):
         app = App.get_running_app()
         w = app.weather
+        # Weather currently exposes mph/ft; convert to user’s display units
         wind_txt = app.units.fmt("speed", w.wind_speed_mph, source="mph", precision=0)
         wave_txt = app.units.fmt("wave",  w.sig_wave_ft,    source="ft",  precision=1)
         self.ids.wave_lbl.text = f"Wind {wind_txt}   Sig {wave_txt}"
 
     def update_wave(self, *_):
-        # 1) Paint immediately from whatever’s cached (non-blocking)
+        # Paint-only; no network call here
         self._paint_wave_labels()
 
+    # Public wrapper (main.py calls place_catch_marker)
+    def place_catch_marker(self, catch):
+        self._place_catch_marker(catch)
 
     def _place_catch_marker(self, catch):
         """
@@ -120,6 +132,7 @@ class TrackScreen(Screen):
         icon = resource_find("fish.png") or ""
         marker = MapMarkerPopup(lat=catch.latitude, lon=catch.longitude, source=icon)
 
+        # Length is stored in cm in DB; display in user’s chosen unit
         length_txt = app.units.fmt_from_base("length", catch.length_cm, precision=1)
         marker.add_widget(Label(text=f"{catch.species}\n{length_txt}"))
         self.ids.mapview.add_widget(marker)

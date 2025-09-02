@@ -18,8 +18,16 @@
             text: f"Air Temp: {root.temp:.1f} °F"
             font_size: "22sp"
 
-        Button:
+        BoxLayout:
             size_hint_y: None
             height: "48dp"
-            text: "Close"
-            on_release: root.dismiss()
+            spacing: "8dp"
+
+            Button:
+                id: refresh_btn
+                text: "Refresh now"
+                on_release: root.refresh_now()
+
+            Button:
+                text: "Close"
+                on_release: root.dismiss()

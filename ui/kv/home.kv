@@ -10,11 +10,23 @@
         BoxLayout:
             size_hint_y: None
             height: "40dp"
+
             Button:                # gear icon – stub
-                text: "Settings"
+                text: ""
                 size_hint_x: None
                 width: "45dp"
                 on_release: app.open_settings()
+                # Uncomment the next two lines if you want NO default button background:
+                # background_normal: ""
+                # background_color: 0, 0, 0, 0
+
+                Image:
+                    source: "img/settings.png"    # <-- your 32x32 PNG
+                    size_hint: None, None
+                    size: "32dp", "32dp"
+                    center_x: self.parent.center_x
+                    center_y: self.parent.center_y
+
             Label:
                 text: "Welcome"
                 halign: "left"

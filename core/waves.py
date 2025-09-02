@@ -35,25 +35,25 @@ def _latest(project_id: int, param_id: int) -> Tuple[datetime, float]:
 # ---------- public convenience layer ----------------------------------
 class Weather:
     """Fetches buoy parameters and caches them for *CACHE_SEC* seconds."""
-    CACHE_SEC = 600          # 10 min, minimum seconds to reuse cached data
-    POLL_SEC  = 1800         # 30 min, background polling cadence (seconds)
+    CACHE_SEC = 600          # 10 min
+    POLL_SEC  = 1800         # 30 min
 
-    def __init__(self, project_id: int = PROJECT_ID, db_hook: Optional[Callable] = None):
+    def __init__(self, project_id: int = PROJECT_ID, db_hook: Callable | None = None):
+        import threading
         self._lock = threading.Lock()
         self._fetching = False
         self._last_fetch = 0.0
         self._last_error = None
-        self._db_hook = db_hook
-        self.project_id = project_id
+        self._db_hook    = db_hook
+        self.project_id  = project_id
 
-        # NEW: initialize caches + optional on_refresh hook
-        self._on_refresh: Optional[Callable[["Weather"], None]] = None
+        # initialize caches so UI can read placeholders safely
+        self.time_utc: Optional[datetime] = None
         self.data: Dict[str, Optional[float]] = {name: None for name in PARAM_IDS.values()}
-        self.data_ts: Dict[str, Optional[datetime]] = {name: None for name in PARAM_IDS.values()}
+        self._on_refresh: Optional[Callable[["Weather"], None]] = None  # optional UI hook
 
-        # Schedule periodic, non-blocking refreshes
+        # schedule non-blocking polling; defer first fetch so UI can render
         Clock.schedule_interval(lambda *_: self.refresh(), self.POLL_SEC)
-        # Defer first refresh until after the first frame so UI draws immediately
         Clock.schedule_once(lambda *_: self.refresh(force=True), 0)
 
     def __getattr__(self, name: str) -> Union[float, str, None]:
@@ -61,26 +61,24 @@ class Weather:
             return self.data.get(name)
         raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
 
-    def set_refresh_hook(self, fn: Callable[["Weather"], None]) -> None:
+    def set_refresh_hook(self, fn):
         """fn(weather_obj) is called *only* when new data was downloaded."""
         self._on_refresh = fn
 
-    def refresh(self, force: bool = False, callback: Optional[Callable[["Weather"], None]] = None) -> None:
+    def refresh(self, force: bool = False, callback=None) -> None:
         """
-        Non-blocking weather refresh. If a fetch is needed, this spawns a worker
-        thread to do network I/O, then posts results back to the main thread.
-        If `callback` is provided, it is called on the main thread after the
-        refresh attempt (whether success or failure).
+        Non-blocking weather refresh. If a fetch is needed, runs a worker thread
+        that does network I/O, then applies results on the main thread.
         """
-        now = time.time()
+        import threading, time, logging
 
-        # If cache is fresh and not forced, nothing to do.
-        if not force and (now - self._last_fetch) < self.CACHE_SEC:
+        # respect cache unless forced
+        if not force and (time.time() - self._last_fetch) < self.CACHE_SEC:
             if callback:
                 Clock.schedule_once(lambda *_: callback(self), 0)
             return
 
-        # Prevent concurrent workers.
+        # prevent concurrent workers
         with self._lock:
             if self._fetching:
                 return
@@ -89,69 +87,55 @@ class Weather:
         def worker():
             ok = False
             err = None
-            changed = False
             try:
                 logging.info("Weather: fetching…")
+                latest_time: Optional[datetime] = None
+                buf: Dict[str, Union[float, str, None]] = {}
 
-                # Build a new snapshot by pulling the newest sample for each param.
-                new_data: Dict[str, Optional[float]] = {}
-                new_ts: Dict[str, Optional[datetime]] = {}
-
-                for pid, name in PARAM_IDS.items():
+                for pid, key in PARAM_IDS.items():
                     try:
                         ts, val = _latest(self.project_id, pid)
-                        new_data[name] = val
-                        new_ts[name] = ts
-                    except Exception as perr:
-                        # Keep old value for this param if fetch fails
-                        logging.warning("Weather: param %s (%s) fetch failed: %s", name, pid, perr)
-                        new_data[name] = self.data.get(name)
-                        new_ts[name] = self.data_ts.get(name)
-
-                # Detect any change (value or timestamp)
-                for key in new_data.keys():
-                    old_v = self.data.get(key)
-                    old_t = self.data_ts.get(key)
-                    if (old_v is None) != (new_data[key] is None):
-                        changed = True; break
-                    if isinstance(old_v, float) and isinstance(new_data[key], float):
-                        if abs(old_v - new_data[key]) > 1e-6:
-                            changed = True; break
-                    if old_t != new_ts[key]:
-                        changed = True; break
+                        buf[key] = val
+                        if latest_time is None or ts > latest_time:
+                            latest_time = ts
+                    except Exception as e:
+                        # keep prior value for this param on individual failures
+                        logging.warning("Weather param %s failed: %s", key, e)
+                        buf[key] = self.data.get(key)
 
                 ok = True
-
             except Exception as e:
                 err = e
                 self._last_error = str(e)
                 logging.exception("Weather.refresh failed")
             finally:
                 def finish(_dt):
-                    # Run on the main thread.
+                    # apply on UI thread
                     if ok:
-                        # Apply the snapshot
-                        try:
-                            self.data = new_data
-                            self.data_ts = new_ts
-                        except UnboundLocalError:
-                            pass
+                        self.time_utc = latest_time
+                        changed = (buf != self.data)
+                        self.data = buf  # replace snapshot
                         self._last_fetch = time.time()
-                        logging.info("Weather: fetch done")
 
-                        # Optional DB side-effects
+                        # # derived fields
+                        # if self.wind_direction_deg is not None:
+                        #     self.data["wind_direction_compass"] = self.deg_to_compass8(self.wind_direction_deg)
+                        # if self.dominant_wave_direction_deg is not None:
+                        #     self.data["dominant_wave_direction_compass"] = self.deg_to_compass8(
+                        #         self.dominant_wave_direction_deg
+                        #     )
+
                         if self._db_hook:
                             try:
                                 self._db_hook(self)
                             except Exception:
                                 logging.exception("Weather db_hook failed")
 
-                        # Notify only when new data actually arrived
                         if changed and self._on_refresh:
                             try:
                                 self._on_refresh(self)
                             except Exception:
-                                logging.exception("Weather on_refresh hook failed")
+                                logging.exception("Weather on_refresh failed")
                     else:
                         logging.info("Weather: fetch failed: %s", err)
 
